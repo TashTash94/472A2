@@ -1,5 +1,3 @@
-from sys import dont_write_bytecode
-from typing import ContextManager
 from requests import get
 from bs4 import BeautifulSoup
 import csv
