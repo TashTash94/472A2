@@ -42,4 +42,3 @@ with open('data.csv', 'r', newline='') as file:
             i += 1
 
 
-# Rating: {review.find('span', class_ = 'rating-other-user-rating').span.text}
