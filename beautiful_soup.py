@@ -1,7 +1,48 @@
+from enum import unique
 from requests import get
 from bs4 import BeautifulSoup
 import csv
+import re
+import string
 url = 'https://www.imdb.com/title/tt1837492/episodes?season={}&ref_=tt_eps_sn_{}'
+list_reviews = []
+list_words = []
+
+def remove_emoji(list_words, return_list):
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                               u"\U00002500-\U00002BEF"  # chinese char
+                               u"\U00002702-\U000027B0"
+                               u"\U00002702-\U000027B0"
+                               u"\U000024C2-\U0001F251"
+                               u"\U0001f926-\U0001f937"
+                               u"\U00010000-\U0010ffff"
+                               u"\u2640-\u2642"
+                               u"\u2600-\u2B55"
+                               u"\u200d"
+                               u"\u23cf"
+                               u"\u23e9"
+                               u"\u231a"
+                               u"\ufe0f"  # dingbats
+                               u"\u3030"
+                               "]+", flags=re.UNICODE)
+    for word in list_words:
+        return_list.append(emoji_pattern.sub(r'', word))
+    return return_list
+
+class Review():
+
+    def __init__(self, text, score):
+        self.text = f"\n{text.lower()}\n"
+        self.score = int(score)
+        self.status = ''
+        self.set_review_status()
+
+    def set_review_status(self):
+        self.status = 'negative' if self.score < 8 else 'positive'
 
 with open('data.csv', 'w', newline='') as file:
     field_names = ['Name', 'Season', 'Review Link', 'Year']
@@ -37,8 +78,17 @@ with open('data.csv', 'r', newline='') as file:
                 continue
             review_text = review.find('div', class_ = 'text show-more__control').text
             score = ratings[ratings_it].span.text
-            print(f"\n{i}: Rating: {score}/10\n{review_text}\n")
+            full_review = Review(review_text, score)
+            list_reviews.append(full_review)
             ratings_it += 1
             i += 1
-
+positive_reviews = []
+negative_reviews = []
+for review in list_reviews:
+    positive_reviews.append(review) if review.status == 'positive' else negative_reviews.append(review)
+    words = re.sub('['+string.punctuation+']', '', review.text).split()
+    for word in words:
+        list_words.append(word)
+list_words.sort()
+no_emoji_list = remove_emoji(list_words, [])
 
