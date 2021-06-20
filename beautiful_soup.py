@@ -37,6 +37,11 @@ class Word():
                 self.negative_frequency += 1
                 self.negative_reviews += 1
 
+    def __eq__(self, other):
+        if other != None and self.text == other.text:
+            return True
+        return False
+
     def set_review_number(self, review_number):
         self.review_number = review_number
     
@@ -76,7 +81,8 @@ def remove_emoji(list_words, return_list):
                                u"\u3030"
                                "]+", flags=re.UNICODE)
     for word in list_words:
-        return_list.append(Word(emoji_pattern.sub(r'', word.text),word.review_number, word.review_status,positive_frequency =  word.positive_frequency, negative_frequency = word.negative_frequency, positive_reviews=word.positive_reviews, negative_reviews=word.negative_reviews))
+        if emoji_pattern.sub(r'', word.text) != '':
+            return_list.append(Word(emoji_pattern.sub(r'', word.text),word.review_number, word.review_status,positive_frequency =  word.positive_frequency, negative_frequency = word.negative_frequency, positive_reviews=word.positive_reviews, negative_reviews=word.negative_reviews))
     return return_list
 def search_list(list_words, text):
     for word in list_words:
@@ -137,7 +143,22 @@ for review in list_reviews:
             list_words.append(Word(word, review_number, review.status))
     review_number += 1
 no_emoji_list = remove_emoji(list_words, [])
+removed_list = []
+for word in no_emoji_list:
+    if word.positive_frequency + word.negative_frequency < 15 or word.positive_frequency + word.negative_frequency > 150:
+        removed_list.append(word)
+
+for word in removed_list:
+    no_emoji_list.remove(word)
+no_emoji_list.sort(key=lambda word: word.text, reverse=False)
+removed_list.sort(key=lambda word: word.text, reverse=False)
+num_words = 1
 with open('model.txt', 'w', newline='') as file:
     for word in no_emoji_list:
-        file.write(f"\nWord: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_reviews/len(positive_reviews)}, Negative reviews: {word.negative_reviews/len(negative_reviews)}\n")
-
+        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_reviews/len(positive_reviews)}, Negative reviews: {word.negative_reviews/len(negative_reviews)}\n\n")
+        num_words += 1
+num_words = 1
+with open('remove.txt', 'w', newline='') as file:
+    for word in removed_list:
+        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_reviews/len(positive_reviews)}, Negative reviews: {word.negative_reviews/len(negative_reviews)}\n\n")
+        num_words += 1
