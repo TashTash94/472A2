@@ -8,6 +8,52 @@ url = 'https://www.imdb.com/title/tt1837492/episodes?season={}&ref_=tt_eps_sn_{}
 list_reviews = []
 list_words = []
 
+class Review():
+
+    def __init__(self, text, score):
+        self.text = f"\n{text.lower()}\n"
+        self.score = int(score)
+        self.status = ''
+        self.set_review_status()
+
+    def set_review_status(self):
+        self.status = 'negative' if self.score < 8 else 'positive'
+
+class Word():
+
+    def __init__(self, word, review_number, review_status, positive_frequency = 0, negative_frequency = 0, positive_reviews = 0, negative_reviews = 0):
+        self.text = word
+        self.review_number = review_number
+        self.review_status = review_status
+        self.positive_frequency = positive_frequency
+        self.negative_frequency = negative_frequency
+        self.positive_reviews = positive_reviews
+        self.negative_reviews = negative_reviews
+        if self.negative_frequency == 0 and self.positive_frequency == 0:
+            if self.review_status == "positive":
+                self.positive_frequency += 1
+                self.positive_reviews += 1
+            else:
+                self.negative_frequency += 1
+                self.negative_reviews += 1
+
+    def set_review_number(self, review_number):
+        self.review_number = review_number
+    
+    def increment_reviews(self, review_number, review_status):
+        if self.review_number != review_number:
+            self.review_number = review_number
+            if review_status == 'positive':
+                self.positive_reviews += 1
+            else:
+                self.negative_reviews += 1
+
+    def increment_frequency(self, review_status):
+        if review_status == "positive":
+            self.positive_frequency += 1
+        else:
+            self.negative_frequency += 1
+
 def remove_emoji(list_words, return_list):
     emoji_pattern = re.compile("["
                                u"\U0001F600-\U0001F64F"  # emoticons
@@ -30,19 +76,13 @@ def remove_emoji(list_words, return_list):
                                u"\u3030"
                                "]+", flags=re.UNICODE)
     for word in list_words:
-        return_list.append(emoji_pattern.sub(r'', word))
+        return_list.append(Word(emoji_pattern.sub(r'', word.text),word.review_number, word.review_status,positive_frequency =  word.positive_frequency, negative_frequency = word.negative_frequency, positive_reviews=word.positive_reviews, negative_reviews=word.negative_reviews))
     return return_list
-
-class Review():
-
-    def __init__(self, text, score):
-        self.text = f"\n{text.lower()}\n"
-        self.score = int(score)
-        self.status = ''
-        self.set_review_status()
-
-    def set_review_status(self):
-        self.status = 'negative' if self.score < 8 else 'positive'
+def search_list(list_words, text):
+    for word in list_words:
+        if word.text == text:
+            return word
+    return None
 
 with open('data.csv', 'w', newline='') as file:
     field_names = ['Name', 'Season', 'Review Link', 'Year']
@@ -84,11 +124,20 @@ with open('data.csv', 'r', newline='') as file:
             i += 1
 positive_reviews = []
 negative_reviews = []
+review_number = 1
 for review in list_reviews:
     positive_reviews.append(review) if review.status == 'positive' else negative_reviews.append(review)
     words = re.sub('['+string.punctuation+']', '', review.text).split()
     for word in words:
-        list_words.append(word)
-list_words.sort()
+        search_result = search_list(list_words, word)
+        if search_result != None:
+            search_result.increment_frequency(review.status)
+            search_result.increment_reviews(review_number, review.status)
+        else:
+            list_words.append(Word(word, review_number, review.status))
+    review_number += 1
 no_emoji_list = remove_emoji(list_words, [])
+with open('model.txt', 'w', newline='') as file:
+    for word in no_emoji_list:
+        file.write(f"\nWord: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_reviews/len(positive_reviews)}, Negative reviews: {word.negative_reviews/len(negative_reviews)}\n")
 
