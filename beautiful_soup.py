@@ -10,7 +10,8 @@ list_words = []
 
 class Review():
 
-    def __init__(self, text, score):
+    def __init__(self, episode_name, text, score):
+        self.episode_name = episode_name
         self.text = f"\n{text.lower()}\n"
         self.score = int(score)
         self.status = ''
@@ -59,7 +60,7 @@ class Word():
         else:
             self.negative_frequency += 1
 
-def remove_emoji(list_words, return_list):
+def remove_emoji(list_words, return_list, positive_words = 0, negative_words = 0):
     emoji_pattern = re.compile("["
                                u"\U0001F600-\U0001F64F"  # emoticons
                                u"\U0001F300-\U0001F5FF"  # symbols & pictographs
@@ -106,12 +107,14 @@ with open('data.csv', 'w', newline='') as file:
             writer.writerow({'Name': episodesContainerOdd[i].strong.text, 'Season': x, 'Review Link': review_link.format(episodesContainerOdd[i].strong.a['href']), 'Year': episodesContainerOdd[i].find('div', class_ = 'airdate').text.split(" ")[14].split("\n")[0]})
             if i < len(episodesContainerEven):
                 writer.writerow({'Name': episodesContainerEven[i].strong.text, 'Season': x, 'Review Link': review_link.format(episodesContainerEven[i].strong.a['href']), 'Year': episodesContainerEven[i].find('div', class_ = 'airdate').text.split(" ")[14].split("\n")[0]})
-
+positive_reviews = []
+negative_reviews = []
 with open('data.csv', 'r', newline='') as file:
     reader = csv.DictReader(file)
     i = 1
     for row in reader:
         review_link = row['Review Link']
+        episode_name = row['Name']
         response = get(review_link)
         html_soup = BeautifulSoup(response.text, 'html.parser')
         ratings = html_soup.find_all('span', class_ = 'rating-other-user-rating')
@@ -124,15 +127,17 @@ with open('data.csv', 'r', newline='') as file:
                 continue
             review_text = review.find('div', class_ = 'text show-more__control').text
             score = ratings[ratings_it].span.text
-            full_review = Review(review_text, score)
+            full_review = Review(episode_name, review_text, score)
+            positive_reviews.append(full_review) if full_review.status == 'positive' else negative_reviews.append(full_review)
             list_reviews.append(full_review)
             ratings_it += 1
             i += 1
-positive_reviews = []
-negative_reviews = []
 review_number = 1
-for review in list_reviews:
-    positive_reviews.append(review) if review.status == 'positive' else negative_reviews.append(review)
+positive_words = 0
+negative_words = 0
+print(len(positive_reviews))
+for i in range(int(len(positive_reviews)/2)):
+    review = positive_reviews[i]
     words = re.sub('['+string.punctuation+']', '', review.text).split()
     for word in words:
         search_result = search_list(list_words, word)
@@ -142,23 +147,55 @@ for review in list_reviews:
         else:
             list_words.append(Word(word, review_number, review.status))
     review_number += 1
+
+review_number = 1
+for i in range(int(len(negative_reviews)/2)):
+    review = negative_reviews[i]
+    words = re.sub('['+string.punctuation+']', '', review.text).split()
+    for word in words:
+        search_result = search_list(list_words, word)
+        if search_result != None:
+            search_result.increment_frequency(review.status)
+            search_result.increment_reviews(review_number, review.status)
+        else:
+            list_words.append(Word(word, review_number, review.status))
+    review_number += 1
+
+# for review in list_reviews:
+#     positive_reviews.append(review) if review.status == 'positive' else negative_reviews.append(review)
+#     words = re.sub('['+string.punctuation+']', '', review.text).split()
+#     for word in words:
+#         search_result = search_list(list_words, word)
+#         if search_result != None:
+#             search_result.increment_frequency(review.status)
+#             search_result.increment_reviews(review_number, review.status)
+#         else:
+#             list_words.append(Word(word, review_number, review.status))
+#     review_number += 1
+positive_words = 0
+negative_words = 0
 no_emoji_list = remove_emoji(list_words, [])
 removed_list = []
 for word in no_emoji_list:
     if word.positive_frequency + word.negative_frequency < 15 or word.positive_frequency + word.negative_frequency > 150:
         removed_list.append(word)
-
+    else:
+        positive_words += word.positive_frequency
+        negative_words += word.negative_frequency
+print(positive_words)
+print(negative_words)
 for word in removed_list:
     no_emoji_list.remove(word)
 no_emoji_list.sort(key=lambda word: word.text, reverse=False)
 removed_list.sort(key=lambda word: word.text, reverse=False)
 num_words = 1
+smoothing_factor = 1
 with open('model.txt', 'w', newline='') as file:
     for word in no_emoji_list:
-        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_reviews/len(positive_reviews)}, Negative reviews: {word.negative_reviews/len(negative_reviews)}\n\n")
+        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {(word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list)))}, Negative reviews: {(word.negative_frequency+smoothing_factor)/(negative_words+(smoothing_factor*len(no_emoji_list)))}\n\n")
         num_words += 1
 num_words = 1
 with open('remove.txt', 'w', newline='') as file:
     for word in removed_list:
-        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_reviews/len(positive_reviews)}, Negative reviews: {word.negative_reviews/len(negative_reviews)}\n\n")
+        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
         num_words += 1
