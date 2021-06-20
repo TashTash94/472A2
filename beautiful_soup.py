@@ -174,7 +174,7 @@ negative_words = 0
 no_emoji_list = remove_emoji(list_words, [])
 removed_list = []
 for word in no_emoji_list:
-    if word.positive_frequency + word.negative_frequency < 3 or word.positive_frequency + word.negative_frequency > 100:
+    if word.positive_frequency + word.negative_frequency < 3 or word.positive_frequency + word.negative_frequency > 150:
         removed_list.append(word)
     else:
         positive_words += word.positive_frequency
