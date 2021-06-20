@@ -195,7 +195,7 @@ with open('model.txt', 'w', newline='') as file:
 num_words = 1
 with open('remove.txt', 'w', newline='') as file:
     for word in removed_list:
-        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
+        file.write(f"{word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
         num_words += 1
 total_test_review = 0
 with open('result.txt', 'w', newline='') as file:
@@ -209,6 +209,22 @@ with open('result.txt', 'w', newline='') as file:
            if search_word != None:
                positive_probability += math.log10(search_word.positive_probability)
                negative_probability += math.log10(search_word.negative_probability)
+        result = "positive" if positive_probability >= negative_probability else "negative"
+        prediciton_result = "right" if result == review.status else "wrong"
+        if prediciton_result == "right":
+            prediction_correctness += 1
+        total_test_review += 1
+        file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n")
+    for i in range(pr_number, int(len(positive_reviews)), 1):
+        positive_probability = math.log10(pr_number/total_md_review)
+        negative_probability = math.log10(nr_number/total_md_review)
+        review = negative_reviews[i]
+        words = re.sub('['+string.punctuation+']', '', review.text).split()
+        for word in words:
+            search_word = search_list(no_emoji_list, word)
+            if search_word != None:
+                positive_probability += math.log10(search_word.positive_probability)
+                negative_probability += math.log10(search_word.negative_probability)
         result = "positive" if positive_probability >= negative_probability else "negative"
         prediciton_result = "right" if result == review.status else "wrong"
         if prediciton_result == "right":
