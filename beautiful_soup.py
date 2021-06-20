@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import csv
 import re
 import string
+import math
 url = 'https://www.imdb.com/title/tt1837492/episodes?season={}&ref_=tt_eps_sn_{}'
 list_reviews = []
 list_words = []
@@ -30,6 +31,8 @@ class Word():
         self.negative_frequency = negative_frequency
         self.positive_reviews = positive_reviews
         self.negative_reviews = negative_reviews
+        self.positive_probability = 0
+        self.negative_probability = 0 
         if self.negative_frequency == 0 and self.positive_frequency == 0:
             if self.review_status == "positive":
                 self.positive_frequency += 1
@@ -46,6 +49,12 @@ class Word():
     def set_review_number(self, review_number):
         self.review_number = review_number
     
+    def set_positive_probability(self, positive_probability):
+        self.positive_probability = positive_probability
+    
+    def set_negative_probability(self, negative_probability):
+        self.negative_probability = negative_probability
+
     def increment_reviews(self, review_number, review_status):
         if self.review_number != review_number:
             self.review_number = review_number
@@ -119,7 +128,6 @@ with open('data.csv', 'r', newline='') as file:
         html_soup = BeautifulSoup(response.text, 'html.parser')
         ratings = html_soup.find_all('span', class_ = 'rating-other-user-rating')
         reviews = html_soup.find_all('div', class_ = 'lister-item-content')
-        # print(f"Rating: {len(ratings)}\nReviews: {len(reviews)}\n\n")
         ratings_it = 0
         for review in reviews:
             ratings_exist = review.find('span', class_ = 'rating-other-user-rating')
@@ -135,7 +143,6 @@ with open('data.csv', 'r', newline='') as file:
 review_number = 1
 positive_words = 0
 negative_words = 0
-print(len(positive_reviews))
 for i in range(int(len(positive_reviews)/2)):
     review = positive_reviews[i]
     words = re.sub('['+string.punctuation+']', '', review.text).split()
@@ -147,7 +154,7 @@ for i in range(int(len(positive_reviews)/2)):
         else:
             list_words.append(Word(word, review_number, review.status))
     review_number += 1
-
+pr_number = review_number-1
 review_number = 1
 for i in range(int(len(negative_reviews)/2)):
     review = negative_reviews[i]
@@ -160,18 +167,8 @@ for i in range(int(len(negative_reviews)/2)):
         else:
             list_words.append(Word(word, review_number, review.status))
     review_number += 1
-
-# for review in list_reviews:
-#     positive_reviews.append(review) if review.status == 'positive' else negative_reviews.append(review)
-#     words = re.sub('['+string.punctuation+']', '', review.text).split()
-#     for word in words:
-#         search_result = search_list(list_words, word)
-#         if search_result != None:
-#             search_result.increment_frequency(review.status)
-#             search_result.increment_reviews(review_number, review.status)
-#         else:
-#             list_words.append(Word(word, review_number, review.status))
-#     review_number += 1
+nr_number = review_number-1
+total_md_review = nr_number + pr_number
 positive_words = 0
 negative_words = 0
 no_emoji_list = remove_emoji(list_words, [])
@@ -182,8 +179,6 @@ for word in no_emoji_list:
     else:
         positive_words += word.positive_frequency
         negative_words += word.negative_frequency
-print(positive_words)
-print(negative_words)
 for word in removed_list:
     no_emoji_list.remove(word)
 no_emoji_list.sort(key=lambda word: word.text, reverse=False)
@@ -192,10 +187,26 @@ num_words = 1
 smoothing_factor = 1
 with open('model.txt', 'w', newline='') as file:
     for word in no_emoji_list:
-        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {(word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list)))}, Negative reviews: {(word.negative_frequency+smoothing_factor)/(negative_words+(smoothing_factor*len(no_emoji_list)))}\n\n")
+        word.set_positive_probability((word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list))))
+        word.set_negative_probability((word.negative_frequency+smoothing_factor)/(negative_words+(smoothing_factor*len(no_emoji_list))))
+        file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_probability}, Negative reviews: {word.negative_probability}\n\n")
         num_words += 1
 num_words = 1
 with open('remove.txt', 'w', newline='') as file:
     for word in removed_list:
         file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
         num_words += 1
+with open('result.txt', 'w', newline='') as file:
+    for i in range(pr_number, int(len(positive_reviews)), 1):
+        positive_probability = math.log10(pr_number/total_md_review)
+        negative_probability = math.log10(nr_number/total_md_review)
+        review = negative_reviews[i]
+        words = re.sub('['+string.punctuation+']', '', review.text).split()
+        for word in words:
+           search_word = search_list(no_emoji_list, word)
+           if search_word != None:
+               positive_probability += math.log10(search_word.positive_probability)
+               negative_probability += math.log10(search_word.negative_probability)
+        result = "positive" if positive_probability >= negative_probability else "negative"
+        prediciton_result = "right" if result == review.status else "wrong"    
+        file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n") 
