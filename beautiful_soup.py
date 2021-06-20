@@ -174,7 +174,7 @@ negative_words = 0
 no_emoji_list = remove_emoji(list_words, [])
 removed_list = []
 for word in no_emoji_list:
-    if word.positive_frequency + word.negative_frequency < 15 or word.positive_frequency + word.negative_frequency > 150:
+    if word.positive_frequency + word.negative_frequency < 3 or word.positive_frequency + word.negative_frequency > 100:
         removed_list.append(word)
     else:
         positive_words += word.positive_frequency
@@ -185,6 +185,7 @@ no_emoji_list.sort(key=lambda word: word.text, reverse=False)
 removed_list.sort(key=lambda word: word.text, reverse=False)
 num_words = 1
 smoothing_factor = 1
+prediction_correctness = 0
 with open('model.txt', 'w', newline='') as file:
     for word in no_emoji_list:
         word.set_positive_probability((word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list))))
@@ -196,11 +197,12 @@ with open('remove.txt', 'w', newline='') as file:
     for word in removed_list:
         file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
         num_words += 1
+total_test_review = 0
 with open('result.txt', 'w', newline='') as file:
     for i in range(pr_number, int(len(positive_reviews)), 1):
         positive_probability = math.log10(pr_number/total_md_review)
         negative_probability = math.log10(nr_number/total_md_review)
-        review = negative_reviews[i]
+        review = positive_reviews[i]
         words = re.sub('['+string.punctuation+']', '', review.text).split()
         for word in words:
            search_word = search_list(no_emoji_list, word)
@@ -208,5 +210,9 @@ with open('result.txt', 'w', newline='') as file:
                positive_probability += math.log10(search_word.positive_probability)
                negative_probability += math.log10(search_word.negative_probability)
         result = "positive" if positive_probability >= negative_probability else "negative"
-        prediciton_result = "right" if result == review.status else "wrong"    
+        prediciton_result = "right" if result == review.status else "wrong"
+        if prediciton_result == "right":
+            prediction_correctness += 1
+        total_test_review += 1
         file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n") 
+    file.write(f"The prediciton correctness is: {(prediction_correctness*100)/total_test_review}")
