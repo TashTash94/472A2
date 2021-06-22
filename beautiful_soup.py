@@ -101,6 +101,14 @@ def search_list(list_words, text):
             return word
     return None
 
+smoothing = int(input("Would you like to run smoothing? "))
+while smoothing != 0 and smoothing != 1:
+    smoothing = int(input("Would you like to run smoothing. Enter 1 for yes 0 for no"))
+if smoothing == 0:
+    smoothing_factors = [1]
+else:
+    smoothing_factors = [1, 1.2, 1.4, 1.6, 1.8, 2.0]
+
 with open('data.csv', 'w', newline='') as file:
     field_names = ['Name', 'Season', 'Review Link', 'Year']
     writer = csv.DictWriter(file, fieldnames = field_names)
@@ -185,11 +193,16 @@ for word in removed_list:
 no_emoji_list.sort(key=lambda word: word.text, reverse=False)
 removed_list.sort(key=lambda word: word.text, reverse=False)
 num_words = 1
-count = 1
-smoothing_factors = [1, 1.2, 1.4, 1.6, 1.8, 2.0]
+count = 0
 for smoothing_factor in smoothing_factors:
     prediction_correctness = 0
-    with open('model.txt', 'w', newline='') as file:
+    if smoothing_factor == 1:
+        model_file = 'model.txt'
+    elif smoothing_factor == 1.6:
+        model_file = 'smooth-model.txt'
+    else:
+        model_file = f'model_{count}.txt'
+    with open(model_file, 'w', newline='') as file:
         for word in no_emoji_list:
             word.set_positive_probability((word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list))))
             word.set_negative_probability((word.negative_frequency+smoothing_factor)/(negative_words+(smoothing_factor*len(no_emoji_list))))
@@ -201,7 +214,12 @@ for smoothing_factor in smoothing_factors:
             file.write(f"{word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
             num_words += 1
     total_test_review = 0
-    result_file = f'result_factor_{count}.txt'
+    if smoothing_factor == 1:
+        result_file = 'result.txt'
+    elif smoothing_factor == 1.6:
+        result_file = "smooth-result.txt"
+    else:
+        result_file = f'result_factor_{count}.txt'
     with open(result_file, 'w', newline='') as file:
         for i in range(pr_number, int(len(positive_reviews)), 1):
             positive_probability = math.log10(pr_number/total_md_review)
