@@ -95,11 +95,49 @@ def remove_emoji(list_words, return_list, positive_words = 0, negative_words = 0
         if emoji_pattern.sub(r'', word.text) != '':
             return_list.append(Word(emoji_pattern.sub(r'', word.text),word.review_number, word.review_status,positive_frequency =  word.positive_frequency, negative_frequency = word.negative_frequency, positive_reviews=word.positive_reviews, negative_reviews=word.negative_reviews))
     return return_list
+    
 def search_list(list_words, text):
     for word in list_words:
         if word.text == text:
             return word
     return None
+
+def lengthLessThan2(no_emoji_list, removed_list):
+    new_list = []
+    for word in no_emoji_list:
+        if len(word.text) <= 2:
+            removed_list.append(word)
+            new_list.append(word)
+    for word in new_list:
+        no_emoji_list.remove(word)
+
+def lengthLessThan4(no_emoji_list, removed_list):
+    new_list = []
+    for word in no_emoji_list:
+        if len(word.text) <= 4:
+            search_result = search_list(removed_list, word.text)
+            if search_result == None:
+                removed_list.append(word)
+                new_list.append(word)
+    for word in new_list:
+        no_emoji_list.remove(word)
+    
+def lengthGreaterThan9(no_emoji_list, removed_list):
+    new_list = []
+    for word in no_emoji_list:
+        if len(word.text) >= 9:
+            removed_list.append(word)
+            new_list.append(word)
+    for word in new_list:
+        no_emoji_list.remove(word)
+
+def lengthFiltering(count, no_emoji_list, removed_list):
+    if count == 0:
+        lengthLessThan2(no_emoji_list, removed_list)
+    if count == 1:
+        lengthLessThan4(no_emoji_list, removed_list)
+    if count == 2:
+        lengthGreaterThan9(no_emoji_list, removed_list)
 
 smoothing = int(input("Would you like to run smoothing? "))
 while smoothing != 0 and smoothing != 1:
@@ -182,77 +220,79 @@ positive_words = 0
 negative_words = 0
 no_emoji_list = remove_emoji(list_words, [])
 removed_list = []
+length_filtering = [0, 1, 2]
+
 for word in no_emoji_list:
-    if word.positive_frequency + word.negative_frequency < 3 or word.positive_frequency + word.negative_frequency > 150:
-        removed_list.append(word)
-    else:
-        positive_words += word.positive_frequency
-        negative_words += word.negative_frequency
-for word in removed_list:
-    no_emoji_list.remove(word)
+    positive_words += word.positive_frequency
+    negative_words += word.negative_frequency
+
 no_emoji_list.sort(key=lambda word: word.text, reverse=False)
 removed_list.sort(key=lambda word: word.text, reverse=False)
 num_words = 1
-count = 0
-for smoothing_factor in smoothing_factors:
-    prediction_correctness = 0
-    if smoothing_factor == 1:
-        model_file = 'model.txt'
-    elif smoothing_factor == 1.6:
-        model_file = 'smooth-model.txt'
-    else:
-        model_file = f'model_{count}.txt'
-    with open(model_file, 'w', newline='') as file:
-        for word in no_emoji_list:
-            word.set_positive_probability((word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list))))
-            word.set_negative_probability((word.negative_frequency+smoothing_factor)/(negative_words+(smoothing_factor*len(no_emoji_list))))
-            file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_probability}, Negative reviews: {word.negative_probability}\n\n")
-            num_words += 1
-    num_words = 1
-    with open('remove.txt', 'w', newline='') as file:
-        for word in removed_list:
-            file.write(f"{word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
-            num_words += 1
-    total_test_review = 0
-    if smoothing_factor == 1:
-        result_file = 'result.txt'
-    elif smoothing_factor == 1.6:
-        result_file = "smooth-result.txt"
-    else:
-        result_file = f'result_factor_{count}.txt'
-    with open(result_file, 'w', newline='') as file:
-        for i in range(pr_number, int(len(positive_reviews)), 1):
-            positive_probability = math.log10(pr_number/total_md_review)
-            negative_probability = math.log10(nr_number/total_md_review)
-            review = positive_reviews[i]
-            words = re.sub('['+string.punctuation+']', '', review.text).split()
-            for word in words:
-                search_word = search_list(no_emoji_list, word)
-                if search_word != None:
-                    positive_probability += math.log10(search_word.positive_probability)
-                    negative_probability += math.log10(search_word.negative_probability)
-            result = "positive" if positive_probability >= negative_probability else "negative"
-            prediciton_result = "right" if result == review.status else "wrong"
-            if prediciton_result == "right":
-                prediction_correctness += 1
-            total_test_review += 1
-            file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n")
-        for i in range(nr_number, int(len(negative_reviews)), 1):
-            positive_probability = math.log10(pr_number/total_md_review)
-            negative_probability = math.log10(nr_number/total_md_review)
-            review = negative_reviews[i]
-            words = re.sub('['+string.punctuation+']', '', review.text).split()
-            for word in words:
-                search_word = search_list(no_emoji_list, word)
-                if search_word != None:
-                    positive_probability += math.log10(search_word.positive_probability)
-                    negative_probability += math.log10(search_word.negative_probability)
-            result = "positive" if positive_probability >= negative_probability else "negative"
-            prediciton_result = "right" if result == review.status else "wrong"
-            if prediciton_result == "right":
-                prediction_correctness += 1
-            total_test_review += 1
-            file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n") 
-        file.write(f"The prediciton correctness is: {(prediction_correctness*100)/total_test_review}")
-        count += 1
-        print((prediction_correctness*100)/total_test_review)
+count = 1
+
+for count in length_filtering:
+    lengthFiltering(count, no_emoji_list, removed_list)
+
+    for smoothing_factor in smoothing_factors:
+        prediction_correctness = 0
+        if smoothing_factor == 1:
+            model_file = 'model.txt'
+        elif smoothing_factor == 1.6:
+            model_file = 'smooth-model.txt'
+        else:
+            model_file = f'model_{count}.txt'
+        with open(model_file, 'w', newline='') as file:
+            for word in no_emoji_list:
+                word.set_positive_probability((word.positive_frequency+smoothing_factor)/(positive_words+(smoothing_factor*len(no_emoji_list))))
+                word.set_negative_probability((word.negative_frequency+smoothing_factor)/(negative_words+(smoothing_factor*len(no_emoji_list))))
+                file.write(f"Word #{num_words}: {word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\nPositive reviews: {word.positive_probability}, Negative reviews: {word.negative_probability}\n\n")
+                num_words += 1
+        num_words = 1
+        with open('remove.txt', 'w', newline='') as file:
+            for word in removed_list:
+                file.write(f"{word.text}\nPositive frequency: {word.positive_frequency}, Negative frequency: {word.negative_frequency}\n\n")
+                num_words += 1
+        total_test_review = 0
+        if smoothing_factor == 1:
+            result_file = 'result.txt'
+        elif smoothing_factor == 1.6:
+            result_file = "smooth-result.txt"
+        else:
+            result_file = f'result_factor_{count}.txt'
+        with open(result_file, 'w', newline='') as file:
+            for i in range(pr_number, int(len(positive_reviews)), 1):
+                positive_probability = math.log10(pr_number/total_md_review)
+                negative_probability = math.log10(nr_number/total_md_review)
+                review = positive_reviews[i]
+                words = re.sub('['+string.punctuation+']', '', review.text).split()
+                for word in words:
+                    search_word = search_list(no_emoji_list, word)
+                    if search_word != None:
+                        positive_probability += math.log10(search_word.positive_probability)
+                        negative_probability += math.log10(search_word.negative_probability)
+                result = "positive" if positive_probability >= negative_probability else "negative"
+                prediciton_result = "right" if result == review.status else "wrong"
+                if prediciton_result == "right":
+                    prediction_correctness += 1
+                total_test_review += 1
+                file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n")
+            for i in range(nr_number, int(len(negative_reviews)), 1):
+                positive_probability = math.log10(pr_number/total_md_review)
+                negative_probability = math.log10(nr_number/total_md_review)
+                review = negative_reviews[i]
+                words = re.sub('['+string.punctuation+']', '', review.text).split()
+                for word in words:
+                    search_word = search_list(no_emoji_list, word)
+                    if search_word != None:
+                        positive_probability += math.log10(search_word.positive_probability)
+                        negative_probability += math.log10(search_word.negative_probability)
+                result = "positive" if positive_probability >= negative_probability else "negative"
+                prediciton_result = "right" if result == review.status else "wrong"
+                if prediciton_result == "right":
+                    prediction_correctness += 1
+                total_test_review += 1
+                file.write(f"Review: {review.episode_name}\nPositive frequency: {positive_probability}, Negative frequency: {negative_probability} \nPrediction: {result} Review Status {review.status} Correct: {prediciton_result} \n\n") 
+            file.write(f"The prediciton correctness is: {(prediction_correctness*100)/total_test_review}")
+            count += 1
+            print((prediction_correctness*100)/total_test_review)
