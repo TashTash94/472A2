@@ -95,7 +95,7 @@ def remove_emoji(list_words, return_list, positive_words = 0, negative_words = 0
         if emoji_pattern.sub(r'', word.text) != '':
             return_list.append(Word(emoji_pattern.sub(r'', word.text),word.review_number, word.review_status,positive_frequency =  word.positive_frequency, negative_frequency = word.negative_frequency, positive_reviews=word.positive_reviews, negative_reviews=word.negative_reviews))
     return return_list
-    
+
 def search_list(list_words, text):
     for word in list_words:
         if word.text == text:
@@ -141,12 +141,19 @@ def lengthFiltering(count, no_emoji_list, removed_list):
 
 smoothing = int(input("Would you like to run smoothing? "))
 while smoothing != 0 and smoothing != 1:
-    smoothing = int(input("Would you like to run smoothing. Enter 1 for yes 0 for no"))
+    smoothing = int(input("Would you like to run smoothing? Enter 1 for yes 0 for no"))
 if smoothing == 0:
     smoothing_factors = [1]
 else:
     smoothing_factors = [1, 1.2, 1.4, 1.6, 1.8, 2.0]
 
+length_filtering  = int(input("Would you like to run length filtering? "))
+while length_filtering != 0 and length_filtering != 1:
+    length_filtering = int(input("Would you like to run length filtering? Enter 1 for yes 0 for no"))
+if length_filtering == 0:
+    length_filtering_factors = [0]
+else:
+    length_filtering_factors = [0, 1, 2]
 with open('data.csv', 'w', newline='') as file:
     field_names = ['Name', 'Season', 'Review Link', 'Year']
     writer = csv.DictWriter(file, fieldnames = field_names)
@@ -216,24 +223,20 @@ for i in range(int(len(negative_reviews)/2)):
     review_number += 1
 nr_number = review_number-1
 total_md_review = nr_number + pr_number
-positive_words = 0
-negative_words = 0
 no_emoji_list = remove_emoji(list_words, [])
 removed_list = []
-length_filtering = [0, 1, 2]
-
-for word in no_emoji_list:
-    positive_words += word.positive_frequency
-    negative_words += word.negative_frequency
-
 no_emoji_list.sort(key=lambda word: word.text, reverse=False)
 removed_list.sort(key=lambda word: word.text, reverse=False)
 num_words = 1
 count = 1
 
-for count in length_filtering:
-    lengthFiltering(count, no_emoji_list, removed_list)
-
+for counter in length_filtering_factors:
+    lengthFiltering(counter, no_emoji_list, removed_list)
+    positive_words = 0
+    negative_words = 0
+    for word in no_emoji_list:
+        positive_words += word.positive_frequency
+        negative_words += word.negative_frequency
     for smoothing_factor in smoothing_factors:
         prediction_correctness = 0
         if smoothing_factor == 1:
