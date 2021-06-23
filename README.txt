@@ -6,3 +6,15 @@ Instructions on how to run the program:
 4. Depending on the choices made, the program will run and output the different results in different files. For example, if infrequent and length filtering is chosen, the program will generate 18 files, as infrequent word filtering generates 6 files every time, and word length filtering generates 3.
 5. The program will then output the correctness of precision percentage for each of the output files.
 5. Lastly, using matplotlib, the program will generate a graph, plotting all outputted correction of precision percentages, where the x-axis shows the output file number (run number) and the y-axis shows the accuracy percentage (correction of precision).
+
+
+List of libraries:
+
+from enum import unique
+from requests import get
+from bs4 import BeautifulSoup
+import matplotlib.pyplot as plt
+import csv
+import re
+import string
+import math
